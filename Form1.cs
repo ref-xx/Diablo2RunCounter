@@ -20,6 +20,9 @@ namespace ArdasD2RunCounter
         private DateTime? lastBlzLogWriteTime;
         private RunSession? activeRun;
         private DateTime? currentTurnStartedAt;
+        private readonly List<PausePeriod> currentRunPausePeriods = new();
+        private TimeSpan currentRunPausedTime = TimeSpan.Zero;
+        private DateTime? currentPauseStartedAt;
         private DateTime? lastRunDetectionTime;
         private DateTime? lastCompletedRunTime;
         private StartDetectionState startDetectionState = StartDetectionState.Idle;
@@ -28,6 +31,7 @@ namespace ArdasD2RunCounter
         private bool missingFolderWarningShown;
         private bool missingBlzLogWarningShown;
         private bool pendingFoundForCurrentRun;
+        private FoundInfo pendingFoundInfo = new();
         private string? currentCharacter;
 
         public Form1()
@@ -45,19 +49,37 @@ namespace ArdasD2RunCounter
 
         private void ConfigureUi()
         {
-            listBox2.ContextMenuStrip = contextMenuStrip1;
-            listBox2.SelectedIndexChanged += listBox2_SelectedIndexChanged;
-            listBox2.MouseDown += listBox2_MouseDown;
+            listView2.View = View.Details;
+            listView2.FullRowSelect = true;
+            listView2.GridLines = true;
+            listView2.ContextMenuStrip = contextMenuStrip1;
+            listView2.SelectedIndexChanged += listView2_SelectedIndexChanged;
+            listView2.MouseDown += listView2_MouseDown;
+            listView2.Columns.Add("Character", 80);
+            listView2.Columns.Add("Session", 95);
+            listView2.Columns.Add("Runs", 50);
+            listView2.Columns.Add("Duration", 80);
+            listView2.Columns.Add("Real Time", 80);
+            listView2.Columns.Add("Found", 55);
+            listView2.Columns.Add("Last", 125);
+            listView2.Columns.Add("Modifier", 65);
 
             listView1.View = View.Details;
             listView1.FullRowSelect = true;
             listView1.GridLines = true;
+            listView1.ContextMenuStrip = contextMenuStrip2;
+            listView1.MouseDown += listView1_MouseDown;
             listView1.Columns.Add("#", 45);
             listView1.Columns.Add("Started", 125);
             listView1.Columns.Add("Finished", 125);
+            listView1.Columns.Add("Duration", 75);
+            listView1.Columns.Add("Paused", 75);
             listView1.Columns.Add("Character", 90);
             listView1.Columns.Add("Found", 55);
-            listView1.Columns.Add("Files", 260);
+            listView1.Columns.Add("Hi", 45);
+            listView1.Columns.Add("Mid", 45);
+            listView1.Columns.Add("Low", 45);
+            listView1.Columns.Add("Note", 140);
 
             button2.Click += button2_Click;
             button3.Click += button3_Click;
@@ -78,6 +100,27 @@ namespace ArdasD2RunCounter
             beepOnEndToolStripMenuItem.Click += beepOnEndToolStripMenuItem_Click;
             beepOnStartToolStripMenuItem.Click += beepOnStartToolStripMenuItem_Click;
             setInterval1500ToolStripMenuItem.Click += setInterval1500ToolStripMenuItem_Click;
+            viewEventLogToolStripMenuItem.CheckOnClick = true;
+            viewEventLogToolStripMenuItem.Checked = listBox1.Visible;
+            viewEventLogToolStripMenuItem.Click += viewEventLogToolStripMenuItem_Click;
+            viewDetailedFoundButtonsToolStripMenuItem.CheckOnClick = true;
+            viewDetailedFoundButtonsToolStripMenuItem.Checked = groupBoxFound.Visible;
+            viewDetailedFoundButtonsToolStripMenuItem.Click += viewDetailedFoundButtonsToolStripMenuItem_Click;
+
+            editPauseToolStripMenuItem.Click += editPauseToolStripMenuItem_Click;
+            removeToolStripMenuItem.Click += removeToolStripMenuItem_Click;
+            markFoundToolStripMenuItem.Click += markFoundToolStripMenuItem_Click;
+            removeFoundToolStripMenuItem.Click += removeFoundToolStripMenuItem_Click;
+
+            buttonhip.Click += (_, _) => AddDetailedFound(FoundTier.High, 1);
+            buttonhim.Click += (_, _) => AddDetailedFound(FoundTier.High, -1);
+            buttonmidp.Click += (_, _) => AddDetailedFound(FoundTier.Mid, 1);
+            buttonmidm.Click += (_, _) => AddDetailedFound(FoundTier.Mid, -1);
+            buttonlop.Click += (_, _) => AddDetailedFound(FoundTier.Low, 1);
+            buttonlom.Click += (_, _) => AddDetailedFound(FoundTier.Low, -1);
+
+            groupBoxFound.Visible = false;
+            viewDetailedFoundButtonsToolStripMenuItem.Checked = false;
         }
 
         private void LoadRuns()
@@ -191,7 +234,7 @@ namespace ArdasD2RunCounter
                 return dialog.FileName;
             }
 
-            AddLog("blz-log.txt was not selected. Turn start detection is disabled.");
+            AddLog("blz-log.txt was not selected. Run start detection is disabled.");
             return null;
         }
 
@@ -387,8 +430,9 @@ namespace ArdasD2RunCounter
             }
 
             currentTurnStartedAt = currentLastWriteTime;
+            ResetCurrentRunPauseTracking();
             startDetectionState = StartDetectionState.Idle;
-            AddLog($"New turn started: {currentLastWriteTime:dd.MM.yyyy HH:mm:ss}");
+            AddLog($"New run started: {currentLastWriteTime:dd.MM.yyyy HH:mm:ss}");
             PlayTurnStartSound();
         }
 
@@ -397,15 +441,16 @@ namespace ArdasD2RunCounter
             if (!database.Settings.TryDetectStart)
             {
                 currentTurnStartedAt = completedAt;
+                ResetCurrentRunPauseTracking();
                 startDetectionState = StartDetectionState.Idle;
-                AddLog("Start detection is disabled. Next turn start defaults to previous finish time.");
+                AddLog("Start detection is disabled. Next run start defaults to previous finish time.");
                 return;
             }
 
             startDetectionState = StartDetectionState.Cooldown;
             startDetectionAvailableAt = completedAt + StartDetectionCooldown;
             startDetectionExpiresAt = startDetectionAvailableAt.Value + StartDetectionTimeout;
-            AddLog($"Waiting {StartDetectionCooldown.TotalSeconds:0}s before watching blz-log.txt for the next turn start.");
+            AddLog($"Waiting {StartDetectionCooldown.TotalSeconds:0}s before watching blz-log.txt for the next run start.");
         }
 
         private void AcceptDefaultTurnStart()
@@ -413,7 +458,8 @@ namespace ArdasD2RunCounter
             if (lastCompletedRunTime.HasValue)
             {
                 currentTurnStartedAt = lastCompletedRunTime.Value;
-                AddLog("No reliable blz-log start signal was detected. Next turn start defaults to previous finish time.");
+                ResetCurrentRunPauseTracking();
+                AddLog("No reliable blz-log start signal was detected. Next run start defaults to previous finish time.");
             }
 
             startDetectionState = StartDetectionState.Idle;
@@ -448,21 +494,30 @@ namespace ArdasD2RunCounter
 
             currentCharacter = detectedCharacter;
             activeRun.CurrentCharacter = detectedCharacter;
+            CloseActivePause(finishedAt);
 
             var turn = new RunTurn
             {
                 Number = activeRun.Turns.Count + 1,
                 StartedAt = currentTurnStartedAt ?? activeRun.StartedAt,
                 FinishedAt = finishedAt,
+                PausedSeconds = (long)currentRunPausedTime.TotalSeconds,
+                PausePeriods = currentRunPausePeriods.Select(period => period.Clone()).ToList(),
                 Character = detectedCharacter,
-                Found = pendingFoundForCurrentRun,
-                ChangedFiles = changedFiles.Select(Path.GetFileName).Where(name => name is not null).Cast<string>().ToList()
+                Found = pendingFoundForCurrentRun || pendingFoundInfo.HasAnyValue,
+                FoundHi = pendingFoundInfo.Hi,
+                FoundMid = pendingFoundInfo.Mid,
+                FoundLow = pendingFoundInfo.Low,
+                FoundNote = pendingFoundInfo.Note
             };
 
             activeRun.Turns.Add(turn);
             activeRun.EndedAt = finishedAt;
             lastCompletedRunTime = finishedAt;
+            currentTurnStartedAt = null;
+            ResetCurrentRunPauseTracking();
             pendingFoundForCurrentRun = false;
+            pendingFoundInfo = new FoundInfo();
 
             BeginStartDetection(finishedAt);
 
@@ -490,6 +545,7 @@ namespace ArdasD2RunCounter
         {
             if (timer1.Enabled)
             {
+                StartPause();
                 timer1.Stop();
                 button1.Text = "Resume Run";
                 SetCounterColor(PausedCounterColor);
@@ -497,6 +553,7 @@ namespace ArdasD2RunCounter
                 return;
             }
 
+            ResumePause();
             ApplyTimerInterval();
             LoadInitialSnapshot();
             lastRunDetectionTime = null;
@@ -506,11 +563,79 @@ namespace ArdasD2RunCounter
             AddLog("Monitoring resumed.");
         }
 
+        private void StartPause()
+        {
+            if (activeRun is null || currentPauseStartedAt.HasValue)
+            {
+                return;
+            }
+
+            currentPauseStartedAt = DateTime.Now;
+            activeRun.CurrentPauseStartedAt = currentPauseStartedAt;
+            SaveRuns();
+        }
+
+        private void ResumePause()
+        {
+            if (activeRun is null || !currentPauseStartedAt.HasValue)
+            {
+                return;
+            }
+
+            CloseActivePause(DateTime.Now);
+            SaveRuns();
+        }
+
+        private void CloseActivePause(DateTime endedAt)
+        {
+            if (activeRun is null || !currentPauseStartedAt.HasValue)
+            {
+                return;
+            }
+
+            var pauseStartedAt = currentPauseStartedAt.Value;
+            if (endedAt < pauseStartedAt)
+            {
+                endedAt = pauseStartedAt;
+            }
+
+            var pausePeriod = new PausePeriod
+            {
+                StartedAt = pauseStartedAt,
+                EndedAt = endedAt
+            };
+
+            currentRunPausePeriods.Add(pausePeriod);
+            currentRunPausedTime += pausePeriod.Duration;
+            currentPauseStartedAt = null;
+
+            activeRun.CurrentRunPausedSeconds = (long)currentRunPausedTime.TotalSeconds;
+            activeRun.CurrentRunPausePeriods = currentRunPausePeriods.Select(period => period.Clone()).ToList();
+            activeRun.CurrentPauseStartedAt = null;
+        }
+
+        private void ResetCurrentRunPauseTracking()
+        {
+            currentRunPausePeriods.Clear();
+            currentRunPausedTime = TimeSpan.Zero;
+            currentPauseStartedAt = null;
+
+            if (activeRun is null)
+            {
+                return;
+            }
+
+            activeRun.CurrentRunPausedSeconds = 0;
+            activeRun.CurrentRunPausePeriods.Clear();
+            activeRun.CurrentPauseStartedAt = null;
+            SaveRuns();
+        }
+
         private void button2_Click(object? sender, EventArgs e)
         {
             var reset = MessageBox.Show(
                 "Reset the active run and start a new one?",
-                "New Run",
+                "New Session",
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question);
 
@@ -519,7 +644,7 @@ namespace ArdasD2RunCounter
                 return;
             }
 
-            var runName = Prompt.Show("Enter the run name:", "New Run");
+            var runName = Prompt.Show("Enter the session name:", "New Session");
             if (string.IsNullOrWhiteSpace(runName))
             {
                 return;
@@ -542,14 +667,16 @@ namespace ArdasD2RunCounter
         {
             if (GetSelectedRun() is not { } selectedRun)
             {
-                AddLog("Select a run from the run list before using Continue Run.");
+                AddLog("Select a session from the session list before using Continue Session.");
                 return;
             }
 
             activeRun = selectedRun;
             currentCharacter = activeRun.CurrentCharacter;
-            currentTurnStartedAt = activeRun.EndedAt ?? activeRun.StartedAt;
+            currentTurnStartedAt = DateTime.Now;
+            ResetCurrentRunPauseTracking();
             pendingFoundForCurrentRun = false;
+            pendingFoundInfo = new FoundInfo();
             lastRunDetectionTime = null;
             lastCompletedRunTime = activeRun.EndedAt;
             startDetectionState = StartDetectionState.Idle;
@@ -557,20 +684,27 @@ namespace ArdasD2RunCounter
             timer1.Start();
             button1.Text = "Pause Run";
             RefreshAll();
-            AddLog($"Continuing run: {activeRun.Name}");
+            AddLog($"Continuing session: {activeRun.Name}");
         }
 
         private void button6_Click(object? sender, EventArgs e)
         {
             if (activeRun is null)
             {
-                AddLog("There is no active run to mark this turn as found.");
+                AddLog("There is no active session to mark this run as found.");
                 return;
             }
 
-            pendingFoundForCurrentRun = true;
-            SetCounterColor(FoundCounterColor);
-            AddLog("This turn will be marked as found.");
+            pendingFoundForCurrentRun = !pendingFoundForCurrentRun;
+            if (!pendingFoundForCurrentRun)
+            {
+                pendingFoundInfo = new FoundInfo();
+            }
+
+            SetCounterColor(pendingFoundForCurrentRun ? FoundCounterColor : NormalCounterColor);
+            AddLog(pendingFoundForCurrentRun
+                ? "This run will be marked as found."
+                : "This run found mark was removed.");
         }
 
         private void button7_Click(object? sender, EventArgs e)
@@ -579,15 +713,25 @@ namespace ArdasD2RunCounter
             var previousTurn = run?.Turns.LastOrDefault();
             if (previousTurn is null)
             {
-                AddLog("There is no completed turn to mark as found.");
+                AddLog("There is no completed run to mark as found.");
                 return;
             }
 
-            previousTurn.Found = true;
+            previousTurn.Found = !previousTurn.Found;
+            if (!previousTurn.Found)
+            {
+                previousTurn.FoundHi = 0;
+                previousTurn.FoundMid = 0;
+                previousTurn.FoundLow = 0;
+                previousTurn.FoundNote = "";
+            }
+
             SaveRuns();
             RefreshAll();
-            SetCounterColor(FoundCounterColor);
-            AddLog($"Previous turn was marked as found: #{previousTurn.Number}");
+            SetCounterColor(previousTurn.Found ? FoundCounterColor : NormalCounterColor);
+            AddLog(previousTurn.Found
+                ? $"Previous run was marked as found: #{previousTurn.Number}"
+                : $"Previous run found mark was removed: #{previousTurn.Number}");
         }
 
         private void StartNewRun(string runName)
@@ -602,7 +746,9 @@ namespace ArdasD2RunCounter
             database.Runs.Insert(0, activeRun);
             currentCharacter = null;
             currentTurnStartedAt = activeRun.StartedAt;
+            ResetCurrentRunPauseTracking();
             pendingFoundForCurrentRun = false;
+            pendingFoundInfo = new FoundInfo();
             lastRunDetectionTime = null;
             lastCompletedRunTime = null;
             startDetectionState = StartDetectionState.Idle;
@@ -611,7 +757,7 @@ namespace ArdasD2RunCounter
             button1.Text = "Pause Run";
             SaveRuns();
             RefreshAll();
-            AddLog($"New run started: {runName}");
+            AddLog($"New session started: {runName}");
         }
 
         private void ModifyActiveRunCount(int delta)
@@ -671,6 +817,99 @@ namespace ArdasD2RunCounter
             AddLog($"Timer interval set to {interval} ms.");
         }
 
+        private void viewEventLogToolStripMenuItem_Click(object? sender, EventArgs e)
+        {
+            listBox1.Visible = viewEventLogToolStripMenuItem.Checked;
+            if (listBox1.Visible)
+            {
+                groupBoxFound.Visible = false;
+                viewDetailedFoundButtonsToolStripMenuItem.Checked = false;
+            }
+        }
+
+        private void viewDetailedFoundButtonsToolStripMenuItem_Click(object? sender, EventArgs e)
+        {
+            groupBoxFound.Visible = viewDetailedFoundButtonsToolStripMenuItem.Checked;
+            if (groupBoxFound.Visible)
+            {
+                listBox1.Visible = false;
+                viewEventLogToolStripMenuItem.Checked = false;
+            }
+        }
+
+        private void AddDetailedFound(FoundTier tier, int delta)
+        {
+            var note = textBox1.Text.Trim();
+            if (checkBoxinPrevRun.Checked)
+            {
+                var runEntry = (activeRun ?? GetSelectedRun())?.Turns.LastOrDefault();
+                if (runEntry is null)
+                {
+                    AddLog("There is no previous completed run for detailed found entry.");
+                    return;
+                }
+
+                ApplyFoundDelta(runEntry, tier, delta, note);
+                SaveRuns();
+                RefreshAll();
+                return;
+            }
+
+            if (activeRun is null)
+            {
+                AddLog("There is no active session for detailed found entry.");
+                return;
+            }
+
+            ApplyFoundDelta(pendingFoundInfo, tier, delta, note);
+            pendingFoundForCurrentRun = pendingFoundInfo.HasAnyValue;
+            SetCounterColor(pendingFoundForCurrentRun ? FoundCounterColor : NormalCounterColor);
+            AddLog($"Detailed found updated for active run: hi {pendingFoundInfo.Hi}, mid {pendingFoundInfo.Mid}, low {pendingFoundInfo.Low}");
+        }
+
+        private static void ApplyFoundDelta(RunTurn runEntry, FoundTier tier, int delta, string note)
+        {
+            switch (tier)
+            {
+                case FoundTier.High:
+                    runEntry.FoundHi += delta;
+                    break;
+                case FoundTier.Mid:
+                    runEntry.FoundMid += delta;
+                    break;
+                case FoundTier.Low:
+                    runEntry.FoundLow += delta;
+                    break;
+            }
+
+            runEntry.Found = runEntry.HasDetailedFound || runEntry.Found;
+            if (!string.IsNullOrWhiteSpace(note))
+            {
+                runEntry.FoundNote = note;
+            }
+        }
+
+        private static void ApplyFoundDelta(FoundInfo foundInfo, FoundTier tier, int delta, string note)
+        {
+            switch (tier)
+            {
+                case FoundTier.High:
+                    foundInfo.Hi += delta;
+                    break;
+                case FoundTier.Mid:
+                    foundInfo.Mid += delta;
+                    break;
+                case FoundTier.Low:
+                    foundInfo.Low += delta;
+                    break;
+            }
+
+            if (!string.IsNullOrWhiteSpace(note))
+            {
+                foundInfo.Note = note;
+            }
+        }
+
         private void ApplyTimerInterval()
         {
             timer1.Interval = Math.Max(100, database.Settings.TimerInterval);
@@ -686,8 +925,16 @@ namespace ArdasD2RunCounter
         private void RefreshCounter()
         {
             label1.Text = GetDisplayedCounter(activeRun).ToString();
-            labelRunDuration.Text = FormatDuration(GetRunDuration(activeRun, useCurrentTime: activeRun is not null));
-            labelTurnAverage.Text = FormatDuration(GetAverageTurnDuration(activeRun, useCurrentTime: activeRun is not null));
+            var sessionDuration = GetSessionDuration(activeRun, includeCurrentRun: activeRun is not null);
+            var averageRunDuration = GetAverageRunDuration(activeRun);
+            var currentRunDuration = GetCurrentRunDuration();
+
+            labelRunDuration.Text = FormatDuration(sessionDuration);
+            labelTurnAverage.Text = FormatDuration(averageRunDuration);
+            labelTurnDuration.Text = FormatDuration(currentRunDuration);
+            labelTurnDuration.ForeColor = averageRunDuration == TimeSpan.Zero || currentRunDuration <= averageRunDuration
+                ? Color.ForestGreen
+                : Color.Firebrick;
 
             if (!timer1.Enabled)
             {
@@ -714,31 +961,68 @@ namespace ArdasD2RunCounter
             return Math.Max(1, run.Turns.Count + run.ManualModifier + 1);
         }
 
-        private static TimeSpan GetRunDuration(RunSession? run, bool useCurrentTime)
+        private TimeSpan GetCurrentRunDuration()
+        {
+            if (activeRun is null || !currentTurnStartedAt.HasValue)
+            {
+                return TimeSpan.Zero;
+            }
+
+            var now = currentPauseStartedAt ?? DateTime.Now;
+            return ClampDuration(now - currentTurnStartedAt.Value - GetCurrentRunPausedTime());
+        }
+
+        private TimeSpan GetCurrentRunPausedTime()
+        {
+            var pausedTime = currentRunPausedTime;
+            if (currentPauseStartedAt.HasValue)
+            {
+                pausedTime += DateTime.Now - currentPauseStartedAt.Value;
+            }
+
+            return ClampDuration(pausedTime);
+        }
+
+        private TimeSpan GetSessionDuration(RunSession? run, bool includeCurrentRun)
         {
             if (run is null)
             {
                 return TimeSpan.Zero;
             }
 
-            var end = useCurrentTime ? DateTime.Now : run.EndedAt ?? DateTime.Now;
-            return end - run.StartedAt;
+            var duration = TimeSpan.FromTicks(run.Turns.Sum(turn => GetRunEffectiveDuration(turn).Ticks));
+            if (includeCurrentRun)
+            {
+                duration += GetCurrentRunDuration();
+            }
+
+            return duration;
         }
 
-        private static TimeSpan GetAverageTurnDuration(RunSession? run, bool useCurrentTime)
+        private static TimeSpan GetAverageRunDuration(RunSession? run)
         {
             if (run is null || run.Turns.Count == 0)
             {
                 return TimeSpan.Zero;
             }
 
-            if (run.Turns.All(turn => turn.StartedAt != default && turn.FinishedAt >= turn.StartedAt))
-            {
-                return TimeSpan.FromTicks((long)run.Turns.Average(turn => (turn.FinishedAt - turn.StartedAt).Ticks));
-            }
+            return TimeSpan.FromTicks((long)run.Turns.Average(turn => GetRunEffectiveDuration(turn).Ticks));
+        }
 
-            var totalDuration = GetRunDuration(run, useCurrentTime);
-            return TimeSpan.FromTicks(totalDuration.Ticks / run.Turns.Count);
+        private static TimeSpan GetSessionRealDuration(RunSession run)
+        {
+            var end = run.EndedAt ?? DateTime.Now;
+            return ClampDuration(end - run.StartedAt);
+        }
+
+        private static TimeSpan GetRunEffectiveDuration(RunTurn turn)
+        {
+            return turn.EffectiveDuration;
+        }
+
+        private static TimeSpan ClampDuration(TimeSpan duration)
+        {
+            return duration < TimeSpan.Zero ? TimeSpan.Zero : duration;
         }
 
         private static string FormatDuration(TimeSpan duration)
@@ -748,30 +1032,46 @@ namespace ArdasD2RunCounter
                 : $"{duration.Minutes:00}:{duration.Seconds:00}";
         }
 
+        private static string FormatFoundCount(int value)
+        {
+            return value == 0 ? "" : value.ToString();
+        }
+
         private void RefreshRunList()
         {
             var selectedId = GetSelectedRun()?.Id ?? activeRun?.Id;
-            listBox2.BeginUpdate();
-            listBox2.Items.Clear();
+            listView2.BeginUpdate();
+            listView2.Items.Clear();
 
             foreach (var run in database.Runs.OrderByDescending(run => run.StartedAt))
             {
-                listBox2.Items.Add(new RunListItem(run));
+                var item = new ListViewItem(string.IsNullOrWhiteSpace(run.CurrentCharacter) ? "Unknown" : run.CurrentCharacter);
+                item.SubItems.Add(run.Name);
+                item.SubItems.Add(run.TotalRuns.ToString());
+                item.SubItems.Add(FormatDuration(run.CompletedRunDuration));
+                item.SubItems.Add(FormatDuration(GetSessionRealDuration(run)));
+                item.SubItems.Add(run.TotalFound.ToString());
+                item.SubItems.Add((run.EndedAt ?? run.StartedAt).ToString("dd.MM.yyyy HH:mm:ss"));
+                item.SubItems.Add(run.ManualModifier == 0 ? "" : run.ManualModifier.ToString("+#;-#;0"));
+                item.Tag = run;
+                listView2.Items.Add(item);
             }
 
             if (selectedId.HasValue)
             {
-                for (var i = 0; i < listBox2.Items.Count; i++)
+                foreach (ListViewItem item in listView2.Items)
                 {
-                    if (listBox2.Items[i] is RunListItem item && item.Run.Id == selectedId.Value)
+                    if (item.Tag is RunSession run && run.Id == selectedId.Value)
                     {
-                        listBox2.SelectedIndex = i;
+                        item.Selected = true;
+                        item.Focused = true;
+                        item.EnsureVisible();
                         break;
                     }
                 }
             }
 
-            listBox2.EndUpdate();
+            listView2.EndUpdate();
         }
 
         private void RefreshDetails()
@@ -787,9 +1087,15 @@ namespace ArdasD2RunCounter
                     var item = new ListViewItem(turn.Number.ToString());
                     item.SubItems.Add(turn.StartedAt == default ? "" : turn.StartedAt.ToString("dd.MM.yyyy HH:mm:ss"));
                     item.SubItems.Add(turn.FinishedAt.ToString("dd.MM.yyyy HH:mm:ss"));
+                    item.SubItems.Add(FormatDuration(GetRunEffectiveDuration(turn)));
+                    item.SubItems.Add(FormatDuration(TimeSpan.FromSeconds(turn.PausedSeconds)));
                     item.SubItems.Add(turn.Character);
                     item.SubItems.Add(turn.Found ? "Yes" : "");
-                    item.SubItems.Add(string.Join(", ", turn.ChangedFiles));
+                    item.SubItems.Add(FormatFoundCount(turn.FoundHi));
+                    item.SubItems.Add(FormatFoundCount(turn.FoundMid));
+                    item.SubItems.Add(FormatFoundCount(turn.FoundLow));
+                    item.SubItems.Add(turn.FoundNote);
+                    item.Tag = turn.Number;
                     if (turn.Found)
                     {
                         item.ForeColor = FoundCounterColor;
@@ -802,33 +1108,145 @@ namespace ArdasD2RunCounter
             listView1.EndUpdate();
         }
 
-        private void listBox2_SelectedIndexChanged(object? sender, EventArgs e)
+        private void listView2_SelectedIndexChanged(object? sender, EventArgs e)
         {
             RefreshDetails();
         }
 
-        private void listBox2_MouseDown(object? sender, MouseEventArgs e)
+        private void listView2_MouseDown(object? sender, MouseEventArgs e)
         {
             if (e.Button != MouseButtons.Right)
             {
                 return;
             }
 
-            var index = listBox2.IndexFromPoint(e.Location);
-            if (index >= 0)
+            var item = listView2.GetItemAt(e.X, e.Y);
+            if (item is not null)
             {
-                listBox2.SelectedIndex = index;
+                item.Selected = true;
+                item.Focused = true;
+            }
+        }
+
+        private void listView1_MouseDown(object? sender, MouseEventArgs e)
+        {
+            if (e.Button != MouseButtons.Right)
+            {
+                return;
+            }
+
+            var item = listView1.GetItemAt(e.X, e.Y);
+            if (item is not null)
+            {
+                item.Selected = true;
+                item.Focused = true;
             }
         }
 
         private RunSession? GetSelectedRun()
         {
-            return (listBox2.SelectedItem as RunListItem)?.Run;
+            return listView2.SelectedItems.Count == 0
+                ? null
+                : listView2.SelectedItems[0].Tag as RunSession;
+        }
+
+        private RunTurn? GetSelectedRunEntry()
+        {
+            var session = GetSelectedRun() ?? activeRun;
+            if (session is null || listView1.SelectedItems.Count == 0)
+            {
+                return null;
+            }
+
+            var number = listView1.SelectedItems[0].Tag is int taggedNumber
+                ? taggedNumber
+                : int.TryParse(listView1.SelectedItems[0].Text, out var parsedNumber) ? parsedNumber : -1;
+
+            return session.Turns.FirstOrDefault(turn => turn.Number == number);
         }
 
         private void AddLog(string text)
         {
             listBox1.Items.Insert(0, $"{DateTime.Now:HH:mm:ss} {text}");
+        }
+
+        private void editPauseToolStripMenuItem_Click(object? sender, EventArgs e)
+        {
+            if (GetSelectedRunEntry() is not { } runEntry)
+            {
+                return;
+            }
+
+            var input = Prompt.Show("Enter pause duration in seconds:", "Edit Pause Duration", runEntry.PausedSeconds.ToString());
+            if (!long.TryParse(input, out var pausedSeconds) || pausedSeconds < 0)
+            {
+                AddLog("Pause duration was not changed. Enter a non-negative number.");
+                return;
+            }
+
+            runEntry.PausedSeconds = pausedSeconds;
+            SaveRuns();
+            RefreshAll();
+        }
+
+        private void removeToolStripMenuItem_Click(object? sender, EventArgs e)
+        {
+            var session = GetSelectedRun() ?? activeRun;
+            var runEntry = GetSelectedRunEntry();
+            if (session is null || runEntry is null)
+            {
+                return;
+            }
+
+            var result = MessageBox.Show($"Remove run #{runEntry.Number}?", "Remove Run", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+            if (result != DialogResult.Yes)
+            {
+                return;
+            }
+
+            session.Turns.Remove(runEntry);
+            RenumberRuns(session);
+            session.EndedAt = session.Turns.LastOrDefault()?.FinishedAt;
+            SaveRuns();
+            RefreshAll();
+        }
+
+        private void markFoundToolStripMenuItem_Click(object? sender, EventArgs e)
+        {
+            SetSelectedRunFound(true);
+        }
+
+        private void removeFoundToolStripMenuItem_Click(object? sender, EventArgs e)
+        {
+            SetSelectedRunFound(false);
+        }
+
+        private void SetSelectedRunFound(bool found)
+        {
+            if (GetSelectedRunEntry() is not { } runEntry)
+            {
+                return;
+            }
+
+            runEntry.Found = found;
+            if (!found)
+            {
+                runEntry.FoundHi = 0;
+                runEntry.FoundMid = 0;
+                runEntry.FoundLow = 0;
+                runEntry.FoundNote = "";
+            }
+
+            SaveRuns();
+            RefreshAll();
+        }
+
+        private static void RenumberRuns(RunSession session)
+        {
+            for (var i = 0; i < session.Turns.Count; i++)
+            {
+                session.Turns[i].Number = i + 1;
+            }
         }
 
         private static bool IsRunSignalFile(string file)
@@ -1032,6 +1450,7 @@ namespace ArdasD2RunCounter
             SaveRuns();
             RefreshAll();
         }
+
     }
 
     public sealed class RunDatabase
@@ -1045,6 +1464,22 @@ namespace ArdasD2RunCounter
         Idle,
         Cooldown,
         AwaitingBlzLog
+    }
+
+    public enum FoundTier
+    {
+        High,
+        Mid,
+        Low
+    }
+
+    public sealed class FoundInfo
+    {
+        public int Hi { get; set; }
+        public int Mid { get; set; }
+        public int Low { get; set; }
+        public string Note { get; set; } = "";
+        public bool HasAnyValue => Hi != 0 || Mid != 0 || Low != 0 || !string.IsNullOrWhiteSpace(Note);
     }
 
     public sealed class AppSettings
@@ -1064,9 +1499,13 @@ namespace ArdasD2RunCounter
         public DateTime? EndedAt { get; set; }
         public int ManualModifier { get; set; }
         public string? CurrentCharacter { get; set; }
+        public long CurrentRunPausedSeconds { get; set; }
+        public DateTime? CurrentPauseStartedAt { get; set; }
+        public List<PausePeriod> CurrentRunPausePeriods { get; set; } = new();
         public List<RunTurn> Turns { get; set; } = new();
         public int TotalRuns => Turns.Count + ManualModifier;
         public int TotalFound => Turns.Count(turn => turn.Found);
+        public TimeSpan CompletedRunDuration => TimeSpan.FromTicks(Turns.Sum(turn => turn.EffectiveDuration.Ticks));
 
         public RunSession Clone()
         {
@@ -1078,6 +1517,9 @@ namespace ArdasD2RunCounter
                 EndedAt = EndedAt,
                 ManualModifier = ManualModifier,
                 CurrentCharacter = CurrentCharacter,
+                CurrentRunPausedSeconds = CurrentRunPausedSeconds,
+                CurrentPauseStartedAt = CurrentPauseStartedAt,
+                CurrentRunPausePeriods = CurrentRunPausePeriods.Select(period => period.Clone()).ToList(),
                 Turns = Turns.Select(turn => turn.Clone()).ToList()
             };
         }
@@ -1088,9 +1530,28 @@ namespace ArdasD2RunCounter
         public int Number { get; set; }
         public DateTime StartedAt { get; set; }
         public DateTime FinishedAt { get; set; }
+        public long PausedSeconds { get; set; }
+        public List<PausePeriod> PausePeriods { get; set; } = new();
         public string Character { get; set; } = "Unknown";
         public bool Found { get; set; }
-        public List<string> ChangedFiles { get; set; } = new();
+        public int FoundHi { get; set; }
+        public int FoundMid { get; set; }
+        public int FoundLow { get; set; }
+        public string FoundNote { get; set; } = "";
+        public bool HasDetailedFound => FoundHi != 0 || FoundMid != 0 || FoundLow != 0 || !string.IsNullOrWhiteSpace(FoundNote);
+        public TimeSpan EffectiveDuration
+        {
+            get
+            {
+                if (StartedAt == default || FinishedAt < StartedAt)
+                {
+                    return TimeSpan.Zero;
+                }
+
+                var duration = FinishedAt - StartedAt - TimeSpan.FromSeconds(PausedSeconds);
+                return duration < TimeSpan.Zero ? TimeSpan.Zero : duration;
+            }
+        }
 
         public RunTurn Clone()
         {
@@ -1099,9 +1560,30 @@ namespace ArdasD2RunCounter
                 Number = Number,
                 StartedAt = StartedAt,
                 FinishedAt = FinishedAt,
+                PausedSeconds = PausedSeconds,
+                PausePeriods = PausePeriods.Select(period => period.Clone()).ToList(),
                 Character = Character,
                 Found = Found,
-                ChangedFiles = ChangedFiles.ToList()
+                FoundHi = FoundHi,
+                FoundMid = FoundMid,
+                FoundLow = FoundLow,
+                FoundNote = FoundNote
+            };
+        }
+    }
+
+    public sealed class PausePeriod
+    {
+        public DateTime StartedAt { get; set; }
+        public DateTime EndedAt { get; set; }
+        public TimeSpan Duration => EndedAt >= StartedAt ? EndedAt - StartedAt : TimeSpan.Zero;
+
+        public PausePeriod Clone()
+        {
+            return new PausePeriod
+            {
+                StartedAt = StartedAt,
+                EndedAt = EndedAt
             };
         }
     }
@@ -1119,8 +1601,7 @@ namespace ArdasD2RunCounter
         {
             var character = string.IsNullOrWhiteSpace(Run.CurrentCharacter) ? "Unknown" : Run.CurrentCharacter;
             var lastDate = Run.EndedAt ?? Run.StartedAt;
-            var durationEnd = Run.EndedAt ?? DateTime.Now;
-            var duration = durationEnd - Run.StartedAt;
+            var duration = Run.CompletedRunDuration;
             var modifier = Run.ManualModifier == 0 ? "" : $" (Modifier {Run.ManualModifier:+#;-#;0})";
 
             return $"{character}: ({Run.Name}) {Run.TotalRuns} Runs, Duration: {duration:dd\\:hh\\:mm\\:ss}, " +

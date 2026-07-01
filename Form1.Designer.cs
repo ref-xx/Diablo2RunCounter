@@ -37,7 +37,6 @@
             button3 = new Button();
             button4 = new Button();
             button5 = new Button();
-            listBox2 = new ListBox();
             contextMenuStrip1 = new ContextMenuStrip(components);
             copyToolStripMenuItem = new ToolStripMenuItem();
             toolStripMenuItem1 = new ToolStripSeparator();
@@ -54,10 +53,39 @@
             contextMenuStrip3 = new ContextMenuStrip(components);
             beepOnEndToolStripMenuItem = new ToolStripMenuItem();
             beepOnStartToolStripMenuItem = new ToolStripMenuItem();
+            toolStripMenuItem3 = new ToolStripSeparator();
             setInterval1500ToolStripMenuItem = new ToolStripMenuItem();
+            toolStripMenuItem2 = new ToolStripSeparator();
+            viewEventLogToolStripMenuItem = new ToolStripMenuItem();
+            viewDetailedFoundButtonsToolStripMenuItem = new ToolStripMenuItem();
             button8 = new Button();
+            labelTurnDuration = new Label();
+            contextMenuStrip2 = new ContextMenuStrip(components);
+            editPauseToolStripMenuItem = new ToolStripMenuItem();
+            removeToolStripMenuItem = new ToolStripMenuItem();
+            markFoundToolStripMenuItem = new ToolStripMenuItem();
+            removeFoundToolStripMenuItem = new ToolStripMenuItem();
+            listView2 = new ListView();
+            panel1 = new Panel();
+            splitContainer1 = new SplitContainer();
+            groupBoxFound = new GroupBox();
+            checkBoxinPrevRun = new CheckBox();
+            textBox1 = new TextBox();
+            buttonlom = new Button();
+            buttonlop = new Button();
+            buttonmidm = new Button();
+            buttonhim = new Button();
+            buttonmidp = new Button();
+            buttonhip = new Button();
             contextMenuStrip1.SuspendLayout();
             contextMenuStrip3.SuspendLayout();
+            contextMenuStrip2.SuspendLayout();
+            panel1.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)splitContainer1).BeginInit();
+            splitContainer1.Panel1.SuspendLayout();
+            splitContainer1.Panel2.SuspendLayout();
+            splitContainer1.SuspendLayout();
+            groupBoxFound.SuspendLayout();
             SuspendLayout();
             // 
             // listBox1
@@ -68,8 +96,9 @@
             listBox1.Location = new Point(12, 204);
             listBox1.Name = "listBox1";
             listBox1.ScrollAlwaysVisible = true;
-            listBox1.Size = new Size(211, 64);
+            listBox1.Size = new Size(211, 109);
             listBox1.TabIndex = 0;
+            listBox1.Visible = false;
             // 
             // button1
             // 
@@ -128,20 +157,8 @@
             button5.Name = "button5";
             button5.Size = new Size(130, 23);
             button5.TabIndex = 7;
-            button5.Text = "Continue Run";
+            button5.Text = "Continue Session";
             button5.UseVisualStyleBackColor = true;
-            // 
-            // listBox2
-            // 
-            listBox2.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left;
-            listBox2.FormattingEnabled = true;
-            listBox2.HorizontalScrollbar = true;
-            listBox2.ItemHeight = 15;
-            listBox2.Location = new Point(229, 12);
-            listBox2.Name = "listBox2";
-            listBox2.ScrollAlwaysVisible = true;
-            listBox2.Size = new Size(253, 259);
-            listBox2.TabIndex = 8;
             // 
             // contextMenuStrip1
             // 
@@ -215,78 +232,278 @@
             // listView1
             // 
             listView1.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            listView1.Location = new Point(488, 12);
+            listView1.Location = new Point(3, 3);
             listView1.Name = "listView1";
-            listView1.Size = new Size(249, 259);
+            listView1.Size = new Size(181, 295);
             listView1.TabIndex = 16;
             listView1.UseCompatibleStateImageBehavior = false;
             // 
             // labelRunDuration
             // 
+            labelRunDuration.BorderStyle = BorderStyle.FixedSingle;
             labelRunDuration.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
             labelRunDuration.Location = new Point(12, 38);
             labelRunDuration.Name = "labelRunDuration";
-            labelRunDuration.Size = new Size(75, 31);
+            labelRunDuration.Size = new Size(75, 23);
             labelRunDuration.TabIndex = 17;
             labelRunDuration.Text = "00:00";
             labelRunDuration.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // labelTurnAverage
             // 
+            labelTurnAverage.BorderStyle = BorderStyle.FixedSingle;
             labelTurnAverage.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
-            labelTurnAverage.Location = new Point(12, 80);
+            labelTurnAverage.Location = new Point(12, 67);
             labelTurnAverage.Name = "labelTurnAverage";
-            labelTurnAverage.Size = new Size(74, 31);
+            labelTurnAverage.Size = new Size(74, 23);
             labelTurnAverage.TabIndex = 18;
             labelTurnAverage.Text = "00:00";
             labelTurnAverage.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // contextMenuStrip3
             // 
-            contextMenuStrip3.Items.AddRange(new ToolStripItem[] { beepOnEndToolStripMenuItem, beepOnStartToolStripMenuItem, setInterval1500ToolStripMenuItem });
+            contextMenuStrip3.Items.AddRange(new ToolStripItem[] { beepOnEndToolStripMenuItem, beepOnStartToolStripMenuItem, toolStripMenuItem3, setInterval1500ToolStripMenuItem, toolStripMenuItem2, viewEventLogToolStripMenuItem, viewDetailedFoundButtonsToolStripMenuItem });
             contextMenuStrip3.Name = "contextMenuStrip3";
-            contextMenuStrip3.Size = new Size(192, 70);
+            contextMenuStrip3.Size = new Size(224, 126);
             // 
             // beepOnEndToolStripMenuItem
             // 
             beepOnEndToolStripMenuItem.Name = "beepOnEndToolStripMenuItem";
-            beepOnEndToolStripMenuItem.Size = new Size(191, 22);
+            beepOnEndToolStripMenuItem.Size = new Size(223, 22);
             beepOnEndToolStripMenuItem.Text = "Beep";
             // 
             // beepOnStartToolStripMenuItem
             // 
             beepOnStartToolStripMenuItem.Name = "beepOnStartToolStripMenuItem";
-            beepOnStartToolStripMenuItem.Size = new Size(191, 22);
-            beepOnStartToolStripMenuItem.Text = "Try detect start of turn";
+            beepOnStartToolStripMenuItem.Size = new Size(223, 22);
+            beepOnStartToolStripMenuItem.Text = "Try detect run start";
+            // 
+            // toolStripMenuItem3
+            // 
+            toolStripMenuItem3.Name = "toolStripMenuItem3";
+            toolStripMenuItem3.Size = new Size(220, 6);
             // 
             // setInterval1500ToolStripMenuItem
             // 
             setInterval1500ToolStripMenuItem.Name = "setInterval1500ToolStripMenuItem";
-            setInterval1500ToolStripMenuItem.Size = new Size(191, 22);
+            setInterval1500ToolStripMenuItem.Size = new Size(223, 22);
             setInterval1500ToolStripMenuItem.Text = "Set Interval (1500)";
+            // 
+            // toolStripMenuItem2
+            // 
+            toolStripMenuItem2.Name = "toolStripMenuItem2";
+            toolStripMenuItem2.Size = new Size(220, 6);
+            // 
+            // viewEventLogToolStripMenuItem
+            // 
+            viewEventLogToolStripMenuItem.Name = "viewEventLogToolStripMenuItem";
+            viewEventLogToolStripMenuItem.Size = new Size(223, 22);
+            viewEventLogToolStripMenuItem.Text = "View event log";
+            // 
+            // viewDetailedFoundButtonsToolStripMenuItem
+            // 
+            viewDetailedFoundButtonsToolStripMenuItem.Name = "viewDetailedFoundButtonsToolStripMenuItem";
+            viewDetailedFoundButtonsToolStripMenuItem.Size = new Size(223, 22);
+            viewDetailedFoundButtonsToolStripMenuItem.Text = "View detailed found buttons";
             // 
             // button8
             // 
-            button8.Location = new Point(13, 117);
+            button8.Location = new Point(13, 175);
             button8.Name = "button8";
             button8.Size = new Size(65, 23);
             button8.TabIndex = 21;
             button8.Text = "Options";
             button8.UseVisualStyleBackColor = true;
             // 
+            // labelTurnDuration
+            // 
+            labelTurnDuration.BorderStyle = BorderStyle.FixedSingle;
+            labelTurnDuration.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
+            labelTurnDuration.Location = new Point(13, 96);
+            labelTurnDuration.Name = "labelTurnDuration";
+            labelTurnDuration.Size = new Size(74, 23);
+            labelTurnDuration.TabIndex = 22;
+            labelTurnDuration.Text = "00:00";
+            labelTurnDuration.TextAlign = ContentAlignment.MiddleCenter;
+            // 
+            // contextMenuStrip2
+            // 
+            contextMenuStrip2.Items.AddRange(new ToolStripItem[] { editPauseToolStripMenuItem, removeToolStripMenuItem, markFoundToolStripMenuItem, removeFoundToolStripMenuItem });
+            contextMenuStrip2.Name = "contextMenuStrip2";
+            contextMenuStrip2.Size = new Size(178, 92);
+            // 
+            // editPauseToolStripMenuItem
+            // 
+            editPauseToolStripMenuItem.Name = "editPauseToolStripMenuItem";
+            editPauseToolStripMenuItem.Size = new Size(177, 22);
+            editPauseToolStripMenuItem.Text = "Edit Pause Duration";
+            // 
+            // removeToolStripMenuItem
+            // 
+            removeToolStripMenuItem.Name = "removeToolStripMenuItem";
+            removeToolStripMenuItem.Size = new Size(177, 22);
+            removeToolStripMenuItem.Text = "Remove Run";
+            // 
+            // markFoundToolStripMenuItem
+            // 
+            markFoundToolStripMenuItem.Name = "markFoundToolStripMenuItem";
+            markFoundToolStripMenuItem.Size = new Size(177, 22);
+            markFoundToolStripMenuItem.Text = "Mark Found";
+            // 
+            // removeFoundToolStripMenuItem
+            // 
+            removeFoundToolStripMenuItem.Name = "removeFoundToolStripMenuItem";
+            removeFoundToolStripMenuItem.Size = new Size(177, 22);
+            removeFoundToolStripMenuItem.Text = "Remove Found";
+            // 
+            // listView2
+            // 
+            listView2.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            listView2.Location = new Point(3, 3);
+            listView2.Name = "listView2";
+            listView2.Size = new Size(303, 295);
+            listView2.TabIndex = 23;
+            listView2.UseCompatibleStateImageBehavior = false;
+            // 
+            // panel1
+            // 
+            panel1.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            panel1.Controls.Add(splitContainer1);
+            panel1.Location = new Point(229, 11);
+            panel1.Name = "panel1";
+            panel1.Size = new Size(516, 303);
+            panel1.TabIndex = 24;
+            // 
+            // splitContainer1
+            // 
+            splitContainer1.BorderStyle = BorderStyle.FixedSingle;
+            splitContainer1.Dock = DockStyle.Fill;
+            splitContainer1.FixedPanel = FixedPanel.Panel1;
+            splitContainer1.Location = new Point(0, 0);
+            splitContainer1.Name = "splitContainer1";
+            // 
+            // splitContainer1.Panel1
+            // 
+            splitContainer1.Panel1.Controls.Add(listView2);
+            // 
+            // splitContainer1.Panel2
+            // 
+            splitContainer1.Panel2.Controls.Add(listView1);
+            splitContainer1.Size = new Size(516, 303);
+            splitContainer1.SplitterDistance = 311;
+            splitContainer1.SplitterWidth = 6;
+            splitContainer1.TabIndex = 0;
+            // 
+            // groupBoxFound
+            // 
+            groupBoxFound.Controls.Add(checkBoxinPrevRun);
+            groupBoxFound.Controls.Add(textBox1);
+            groupBoxFound.Controls.Add(buttonlom);
+            groupBoxFound.Controls.Add(buttonlop);
+            groupBoxFound.Controls.Add(buttonmidm);
+            groupBoxFound.Controls.Add(buttonhim);
+            groupBoxFound.Controls.Add(buttonmidp);
+            groupBoxFound.Controls.Add(buttonhip);
+            groupBoxFound.Location = new Point(3, 204);
+            groupBoxFound.Name = "groupBoxFound";
+            groupBoxFound.Size = new Size(220, 110);
+            groupBoxFound.TabIndex = 25;
+            groupBoxFound.TabStop = false;
+            groupBoxFound.Text = "Found hi, mid, lo";
+            // 
+            // checkBoxinPrevRun
+            // 
+            checkBoxinPrevRun.AutoSize = true;
+            checkBoxinPrevRun.Location = new Point(117, 0);
+            checkBoxinPrevRun.Name = "checkBoxinPrevRun";
+            checkBoxinPrevRun.Size = new Size(86, 19);
+            checkBoxinPrevRun.TabIndex = 22;
+            checkBoxinPrevRun.Text = "In Prev Run";
+            checkBoxinPrevRun.UseVisualStyleBackColor = true;
+            // 
+            // textBox1
+            // 
+            textBox1.Location = new Point(16, 23);
+            textBox1.MaxLength = 512;
+            textBox1.Name = "textBox1";
+            textBox1.Size = new Size(189, 23);
+            textBox1.TabIndex = 21;
+            textBox1.Text = "Legendary, Set, Junk";
+            // 
+            // buttonlom
+            // 
+            buttonlom.BackColor = Color.CornflowerBlue;
+            buttonlom.Location = new Point(146, 81);
+            buttonlom.Name = "buttonlom";
+            buttonlom.Size = new Size(59, 23);
+            buttonlom.TabIndex = 20;
+            buttonlom.Text = "-1";
+            buttonlom.UseVisualStyleBackColor = false;
+            // 
+            // buttonlop
+            // 
+            buttonlop.BackColor = Color.CornflowerBlue;
+            buttonlop.Location = new Point(146, 52);
+            buttonlop.Name = "buttonlop";
+            buttonlop.Size = new Size(59, 23);
+            buttonlop.TabIndex = 19;
+            buttonlop.Text = "+1";
+            buttonlop.UseVisualStyleBackColor = false;
+            // 
+            // buttonmidm
+            // 
+            buttonmidm.BackColor = Color.LimeGreen;
+            buttonmidm.Location = new Point(81, 81);
+            buttonmidm.Name = "buttonmidm";
+            buttonmidm.Size = new Size(59, 23);
+            buttonmidm.TabIndex = 18;
+            buttonmidm.Text = "-1";
+            buttonmidm.UseVisualStyleBackColor = false;
+            // 
+            // buttonhim
+            // 
+            buttonhim.BackColor = Color.Goldenrod;
+            buttonhim.Location = new Point(16, 81);
+            buttonhim.Name = "buttonhim";
+            buttonhim.Size = new Size(59, 23);
+            buttonhim.TabIndex = 17;
+            buttonhim.Text = "-1";
+            buttonhim.UseVisualStyleBackColor = false;
+            // 
+            // buttonmidp
+            // 
+            buttonmidp.BackColor = Color.LimeGreen;
+            buttonmidp.Location = new Point(81, 52);
+            buttonmidp.Name = "buttonmidp";
+            buttonmidp.Size = new Size(59, 23);
+            buttonmidp.TabIndex = 16;
+            buttonmidp.Text = "+1";
+            buttonmidp.UseVisualStyleBackColor = false;
+            // 
+            // buttonhip
+            // 
+            buttonhip.BackColor = Color.Goldenrod;
+            buttonhip.Location = new Point(16, 52);
+            buttonhip.Name = "buttonhip";
+            buttonhip.Size = new Size(59, 23);
+            buttonhip.TabIndex = 15;
+            buttonhip.Text = "+1";
+            buttonhip.UseVisualStyleBackColor = false;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(749, 283);
+            ClientSize = new Size(757, 323);
+            Controls.Add(groupBoxFound);
+            Controls.Add(panel1);
+            Controls.Add(labelTurnDuration);
             Controls.Add(button8);
             Controls.Add(labelTurnAverage);
             Controls.Add(labelRunDuration);
-            Controls.Add(listView1);
             Controls.Add(label3);
             Controls.Add(button6);
             Controls.Add(button7);
-            Controls.Add(listBox2);
             Controls.Add(button5);
             Controls.Add(button4);
             Controls.Add(button3);
@@ -295,9 +512,17 @@
             Controls.Add(button1);
             Controls.Add(listBox1);
             Name = "Form1";
-            Text = "Arda's D2R automatic run counter";
+            Text = "Arda's D2R automatic run counter V1.0";
             contextMenuStrip1.ResumeLayout(false);
             contextMenuStrip3.ResumeLayout(false);
+            contextMenuStrip2.ResumeLayout(false);
+            panel1.ResumeLayout(false);
+            splitContainer1.Panel1.ResumeLayout(false);
+            splitContainer1.Panel2.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)splitContainer1).EndInit();
+            splitContainer1.ResumeLayout(false);
+            groupBoxFound.ResumeLayout(false);
+            groupBoxFound.PerformLayout();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -312,7 +537,6 @@
         private Button button3;
         private Button button4;
         private Button button5;
-        private ListBox listBox2;
         private ContextMenuStrip contextMenuStrip1;
         private ToolStripMenuItem renameToolStripMenuItem;
         private ToolStripMenuItem deleteToolStripMenuItem;
@@ -331,5 +555,27 @@
         private ToolStripMenuItem beepOnStartToolStripMenuItem;
         private Button button8;
         private ToolStripMenuItem setInterval1500ToolStripMenuItem;
+        private Label labelTurnDuration;
+        private ContextMenuStrip contextMenuStrip2;
+        private ToolStripMenuItem editPauseToolStripMenuItem;
+        private ToolStripMenuItem removeToolStripMenuItem;
+        private ToolStripMenuItem markFoundToolStripMenuItem;
+        private ToolStripMenuItem removeFoundToolStripMenuItem;
+        private ListView listView2;
+        private Panel panel1;
+        private SplitContainer splitContainer1;
+        private ToolStripSeparator toolStripMenuItem3;
+        private ToolStripSeparator toolStripMenuItem2;
+        private ToolStripMenuItem viewEventLogToolStripMenuItem;
+        private GroupBox groupBoxFound;
+        private Button buttonlom;
+        private Button buttonlop;
+        private Button buttonmidm;
+        private Button buttonhim;
+        private Button buttonmidp;
+        private Button buttonhip;
+        private TextBox textBox1;
+        private CheckBox checkBoxinPrevRun;
+        private ToolStripMenuItem viewDetailedFoundButtonsToolStripMenuItem;
     }
 }

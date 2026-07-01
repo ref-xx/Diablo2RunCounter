@@ -12,7 +12,7 @@ This is a lightweight, automatic item-find run counter designed specifically for
 * **Loot Logging:** You can flag any successful run as "Found" to keep precise statistical track of your Holy Grail or specific item hunts.
 
 ### 🔒 100% Passive & Safe (Zero File Corruption Risk)
-We understand how important your game data is. This tool is engineered to be entirely passive and non-intrusive:
+I understand how important your game data is. This tool is engineered to be entirely passive and non-intrusive:
 * **No File Access or Modification:** The tool **never opens, reads, or writes to** your Diablo II files. There is absolutely **zero risk of file corruption**.
 * **How it works:** It simply scans the directory every few seconds to check the *last modification date* of `settings.json` and `bzx-log.txt`. It also peeks at the timestamp of the `.ctlo` file (the keyboard control definitions file of your last-played character) solely to grab your character's name. 
 * **Performance-Friendly:** Because it only checks metadata (timestamps) rather than opening the files themselves, it consumes virtually zero system resources. You won't even notice it's running in the background.
